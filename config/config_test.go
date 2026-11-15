@@ -7,6 +7,9 @@ func TestLoadDefaults(t *testing.T) {
 	t.Setenv("MAX_UPLOAD_SIZE_MB", "")
 	t.Setenv("OPENAI_API_KEY", "")
 	t.Setenv("OPENAI_MODEL", "")
+	t.Setenv("OLLAMA_URL", "")
+	t.Setenv("OLLAMA_MODEL", "")
+	t.Setenv("OLLAMA_TIMEOUT_SECONDS", "")
 
 	got, err := Load()
 	if err != nil {
@@ -17,6 +20,29 @@ func TestLoadDefaults(t *testing.T) {
 	}
 	if got.MaxUploadSizeMB != defaultMaxUploadSizeMB {
 		t.Errorf("MaxUploadSizeMB = %d, want %d", got.MaxUploadSizeMB, defaultMaxUploadSizeMB)
+	}
+	if got.OllamaURL != defaultOllamaURL || got.OllamaModel != defaultOllamaModel {
+		t.Errorf("Ollama defaults = %q, %q", got.OllamaURL, got.OllamaModel)
+	}
+	if got.OllamaTimeout.Seconds() != defaultOllamaTimeout {
+		t.Errorf("OllamaTimeout = %v, want %d seconds", got.OllamaTimeout, defaultOllamaTimeout)
+	}
+}
+
+func TestLoadRejectsInvalidOllamaSettings(t *testing.T) {
+	tests := []struct{ name, key, value string }{
+		{"invalid URL", "OLLAMA_URL", "not-a-url"},
+		{"empty model", "OLLAMA_MODEL", " "},
+		{"non-numeric timeout", "OLLAMA_TIMEOUT_SECONDS", "soon"},
+		{"out-of-range timeout", "OLLAMA_TIMEOUT_SECONDS", "301"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv(test.key, test.value)
+			if _, err := Load(); err == nil {
+				t.Fatal("Load() error = nil, want validation error")
+			}
+		})
 	}
 }
 

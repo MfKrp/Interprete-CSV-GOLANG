@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0c0a10">
+  <meta name="description" content="Asistente inteligente para analizar archivos CSV">
+  <title>CSV Copilot — Análisis de datos</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="CSV Copilot, inicio">
+        <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span>
+        <span class="brand-copy"><strong>CSV <em>Copilot</em></strong><small>Asistente inteligente para analizar archivos CSV</small></span>
+      </a>
+      <div class="connection-wrap">
+        <span id="connection-dot" class="connection-dot" aria-hidden="true"></span>
+        <span id="connection-status" role="status" aria-live="polite">Comprobando conexión</span>
+        <button id="refresh-connection" class="icon-button" type="button" aria-label="Comprobar conexión" title="Comprobar conexión">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M5.6 9A7 7 0 0 1 18 6.5L20 12M4 12l2 5.5A7 7 0 0 0 18.4 15"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <main>
+      <section class="welcome-row" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow"><span class="eyebrow-line"></span> TUS DATOS, EN CLARO</p>
+          <h1 id="page-title">Preguntale a tus datos.</h1>
+          <p class="welcome-copy">Cargá un CSV y exploralo con preguntas simples. Los cálculos se ejecutan de forma segura en Go.</p>
+        </div>
+        <div class="privacy-note"><span class="privacy-icon" aria-hidden="true">◈</span><span>Tu archivo se procesa localmente<br><small>y se conserva en memoria mientras corre el servidor</small></span></div>
+      </section>
+
+      <div class="workspace-grid">
+        <div class="data-column">
+          <section class="panel upload-panel" aria-labelledby="upload-title">
+            <div class="section-heading">
+              <div class="section-heading-main">
+                <span class="step-number">01</span>
+                <div><h2 id="upload-title">Cargá un archivo</h2><p>CSV separado por comas, hasta 10 MB</p></div>
+              </div>
+              <span class="format-pill">.CSV</span>
+            </div>
+            <div id="drop-zone" class="drop-zone" tabindex="0" role="button" aria-label="Seleccionar o soltar un archivo CSV">
+              <input id="file-input" class="visually-hidden" type="file" accept=".csv,text/csv" aria-label="Elegir archivo CSV">
+              <span class="upload-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v5h14v-5"/></svg>
+              </span>
+              <div class="drop-copy"><strong>Arrastrá tu CSV acá</strong><span>o <button id="browse-file" class="text-button" type="button">buscá en tu equipo</button></span></div>
+              <span class="drop-hint">CSV · Máximo 10 MB</span>
+            </div>
+            <div id="selected-file" class="selected-file" hidden>
+              <span class="file-badge" aria-hidden="true">CSV</span>
+              <span class="selected-file-copy"><strong id="selected-name"></strong><small id="selected-size"></small></span>
+              <button id="clear-file" class="icon-button remove-file" type="button" aria-label="Quitar archivo seleccionado" title="Quitar archivo">×</button>
+            </div>
+            <div class="upload-actions">
+              <p id="upload-message" class="inline-message" role="status" aria-live="polite"></p>
+              <button id="upload-button" class="button button-primary" type="button" disabled>
+                <span class="button-spinner" aria-hidden="true"></span><span class="button-label">Cargar archivo</span><span class="button-arrow" aria-hidden="true">↗</span>
+              </button>
+            </div>
+          </section>
+
+          <section id="dataset-section" class="panel dataset-panel" aria-labelledby="dataset-title" hidden>
+            <div class="section-heading dataset-heading">
+              <div class="section-heading-main">
+                <span class="step-number">02</span>
+                <div><h2 id="dataset-title">Tu dataset</h2><p id="dataset-file-name">—</p></div>
+              </div>
+              <span class="loaded-pill"><span></span> CARGADO</span>
+            </div>
+            <div class="stats-grid">
+              <div class="stat-card"><span>REGISTROS</span><strong id="row-count">0</strong></div>
+              <div class="stat-card"><span>COLUMNAS</span><strong id="column-count">0</strong></div>
+              <div class="stat-card stat-file"><span>ARCHIVO</span><strong id="dataset-size">CSV</strong></div>
+            </div>
+            <div class="columns-block">
+              <h3>Columnas detectadas</h3>
+              <div id="column-list" class="column-list"></div>
+            </div>
+            <div class="preview-block">
+              <div class="preview-heading"><div><h3>Vista previa</h3><p>Primeros registros del archivo</p></div><span id="preview-count" class="preview-count">0 filas</span></div>
+              <div class="table-scroll" role="region" aria-label="Vista previa del CSV" tabindex="0">
+                <table id="preview-table"><thead></thead><tbody></tbody></table>
+              </div>
+            </div>
+          </section>
+
+          <section id="empty-dataset" class="empty-dataset panel">
+            <span class="empty-orbit" aria-hidden="true"><span>↥</span></span>
+            <h2>Tu espacio de análisis está listo</h2>
+            <p>Subí un archivo CSV para ver su estructura y empezar a hacer preguntas.</p>
+          </section>
+        </div>
+
+        <aside class="analysis-column">
+          <section class="panel query-panel" aria-labelledby="query-title">
+            <div class="section-heading">
+              <div class="section-heading-main">
+                <span class="step-number">03</span>
+                <div><h2 id="query-title">Hacé una pregunta</h2><p>Consultá tus datos en lenguaje natural</p></div>
+              </div>
+              <span class="ai-mark" aria-label="Interpretado por Qwen">✳</span>
+            </div>
+            <label class="question-label" for="question-input">Tu pregunta</label>
+            <textarea id="question-input" rows="4" maxlength="2000" placeholder="Ej.: ¿Cuál fue el total vendido por vendedor?" disabled></textarea>
+            <div class="question-footer"><span>Podés contar valores únicos o filtrar con una sola condición.</span><span id="question-length">0 / 2000</span></div>
+            <div class="suggestions" aria-label="Preguntas sugeridas">
+              <button type="button" class="suggestion" data-question="¿Cuántas filas tiene este archivo?" disabled>Contar filas</button>
+              <button type="button" class="suggestion" data-question="Sumá la columna total_venta agrupada por vendedor." disabled>Ventas por vendedor</button>
+              <button type="button" class="suggestion" data-question="¿Cuál es el promedio de unidades?" disabled>Promedio de unidades</button>
+            </div>
+            <div class="query-actions">
+              <p id="query-error" class="error-message" role="alert" hidden></p>
+              <button id="query-button" class="button button-primary query-submit" type="button" disabled>
+                <span class="button-spinner" aria-hidden="true"></span><span class="button-label">Consultar</span><span class="button-arrow" aria-hidden="true">↗</span>
+              </button>
+            </div>
+          </section>
+
+          <section id="result-panel" class="panel result-panel" aria-labelledby="result-title" hidden>
+            <div class="result-heading"><div><p class="eyebrow"><span class="success-dot"></span> ANÁLISIS COMPLETADO</p><h2 id="result-title">Resultado</h2></div><span class="result-check" aria-hidden="true">✓</span></div>
+            <div class="result-question"><span>Tu pregunta</span><p id="result-question"></p></div>
+            <div class="interpretation-block"><span class="result-label">OPERACIÓN INTERPRETADA</span><strong id="result-operation"></strong><dl id="result-parameters" class="result-parameters"></dl></div>
+            <div id="scalar-result" class="scalar-result" hidden><span>RESULTADO</span><strong id="scalar-value"></strong></div>
+            <div id="group-result" class="group-result" hidden>
+              <span class="result-label">RESULTADO POR GRUPO</span>
+              <div class="table-scroll result-table-scroll" role="region" aria-label="Resultados agrupados" tabindex="0">
+                <table id="group-table"><thead></thead><tbody></tbody></table>
+              </div>
+            </div>
+          </section>
+
+          <div class="side-note"><span aria-hidden="true">✦</span><p>La IA interpreta tu pregunta. <strong>Go calcula el resultado</strong> sobre los datos originales.</p></div>
+        </aside>
+      </div>
+    </main>
+
+    <footer class="footer"><span>CSV Copilot</span><span>Hecho para entender tus datos.</span></footer>
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  </div>
+</body>
+</html>

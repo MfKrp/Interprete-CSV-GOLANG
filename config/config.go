@@ -2,13 +2,19 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
+	"strings"
+	"time"
 )
 
 const (
 	defaultPort            = 8080
 	defaultMaxUploadSizeMB = 10
+	defaultOllamaURL       = "http://localhost:11434"
+	defaultOllamaModel     = "qwen3:4b"
+	defaultOllamaTimeout   = 60
 )
 
 type Config struct {
@@ -16,6 +22,9 @@ type Config struct {
 	OpenAIModel     string
 	Port            int
 	MaxUploadSizeMB int64
+	OllamaURL       string
+	OllamaModel     string
+	OllamaTimeout   time.Duration
 }
 
 func Load() (Config, error) {
@@ -34,13 +43,39 @@ func Load() (Config, error) {
 	if maxUploadSizeMB < 1 {
 		return Config{}, fmt.Errorf("MAX_UPLOAD_SIZE_MB must be greater than 0")
 	}
+	ollamaURL := strings.TrimSpace(stringEnv("OLLAMA_URL", defaultOllamaURL))
+	parsedURL, err := url.ParseRequestURI(ollamaURL)
+	if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") || parsedURL.Host == "" {
+		return Config{}, fmt.Errorf("OLLAMA_URL must be a valid http or https URL")
+	}
+	ollamaModel := strings.TrimSpace(stringEnv("OLLAMA_MODEL", defaultOllamaModel))
+	if ollamaModel == "" {
+		return Config{}, fmt.Errorf("OLLAMA_MODEL must not be empty")
+	}
+	ollamaTimeoutSeconds, err := intEnv("OLLAMA_TIMEOUT_SECONDS", defaultOllamaTimeout)
+	if err != nil {
+		return Config{}, err
+	}
+	if ollamaTimeoutSeconds < 1 || ollamaTimeoutSeconds > 300 {
+		return Config{}, fmt.Errorf("OLLAMA_TIMEOUT_SECONDS must be between 1 and 300")
+	}
 
 	return Config{
 		OpenAIAPIKey:    os.Getenv("OPENAI_API_KEY"),
 		OpenAIModel:     os.Getenv("OPENAI_MODEL"),
 		Port:            port,
 		MaxUploadSizeMB: maxUploadSizeMB,
+		OllamaURL:       ollamaURL,
+		OllamaModel:     ollamaModel,
+		OllamaTimeout:   time.Duration(ollamaTimeoutSeconds) * time.Second,
 	}, nil
+}
+
+func stringEnv(name, fallback string) string {
+	if value := os.Getenv(name); value != "" {
+		return value
+	}
+	return fallback
 }
 
 func intEnv(name string, fallback int) (int, error) {
